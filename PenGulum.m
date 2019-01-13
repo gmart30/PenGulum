@@ -281,11 +281,11 @@ simulation(hGui.Fig,[]);
         global hist params;
         
         switch handle.model.flag
-            case 1
+            case {1,4}
                 hist = 1;
                 [tM,sim] = ode15s(@pendulumStateDerivative_SRS, tspan, x0, options, inputdata);
                 set(handle.simulationPlot,'xdata',tM,'ydata',sim(:,1)*180/pi,'Color',[0 0 0],'Linewidth',2);
-            case 2
+            case {2,5}
                 x0 = [q0/180*pi 0 0 0];
                 params = inputdata;
                 hist = 1;
@@ -293,7 +293,7 @@ simulation(hGui.Fig,[]);
                 sim = interp1(solls.x,solls.y(1,:)',tspan(1):0.01:tspan(2))';
                 set(handle.simulationPlot,'xdata',tspan(1):0.01:tspan(2),'ydata',...
                     sim(:,1)*180/pi,'Color',[0 0 0],'Linewidth',2);
-            case 3
+            case {3,6}
                 x0 = [q0/180*pi 0 0 0];
                 params = inputdata;
                 hist = 1;
@@ -336,29 +336,15 @@ simulation(hGui.Fig,[]);
         params = inputdata;
         
         switch flags
-            case 1
+            case {1,4}
                 [~,sim] = ode15s(@pendulumStateDerivative_SRS, tspan, x0(1:3), options, inputdata);
                 
-            case 2
+            case {2,5}
                 inputdata.kF = datav(2);
                 inputdata.fdF = datav(3);
                 solls = ddensd(@pendulumStateDerivative_SRS_Ffb, lags, lags, x0, tspan);
                 sim = interp1(solls.x,solls.y(1,:)',tspan)';
-            case 3
-                inputdata.kl = datav(3);
-                inputdata.kv = datav(2);
-                solls_v = ddensd(@pendulumStateDerivative_SRS_vfb, lags, lags, x0, tspan);
-                sim = interp1(solls_v.x,solls_v.y(1,:)',tspan)';
-            
-            case 4
-                [~,sim] = ode15s(@pendulumStateDerivative_SRS, tspan, x0(1:3), options, inputdata);
-                
-            case 5
-                inputdata.kF = datav(2);
-                inputdata.fdF = datav(3);
-                solls = ddensd(@pendulumStateDerivative_SRS_Ffb, lags, lags, x0, tspan);
-                sim = interp1(solls.x,solls.y(1,:)',tspan)';
-            case 6
+            case {3,6}
                 inputdata.kl = datav(3);
                 inputdata.kv = datav(2);
                 solls_v = ddensd(@pendulumStateDerivative_SRS_vfb, lags, lags, x0, tspan);
