@@ -37,17 +37,27 @@ for i = 1:size(controlParameters,2)
 end
 
 % Model selection
-hGui.modelFlags = uibuttongroup('Position',[0.04 0.03 .49 .29],...
+hGui.modelFlags = uibuttongroup('Position',[0.04 0.151 .49 .17],...
     'SelectionChangedFcn',@modelSelection);
 hGui.flag1 = uicontrol(hGui.modelFlags,'Style','radiobutton',...
-    'Position',[10 130 300 20],'Tag','1',...
+    'Position',[10 70 300 30],'Tag','1',...
     'String','State derivative of pendulum model with SRS');
 hGui.flag2 = uicontrol(hGui.modelFlags,'Style','radiobutton',...
-    'Position',[10 80 380 30],'Tag','2',...
+    'Position',[10 40 380 30],'Tag','2',...
     'String','State derivative of pendulum model with SRS and force-related reflexes');
 hGui.flag3 = uicontrol(hGui.modelFlags,'Style','radiobutton',...
-    'Position',[10 30 380 30],'Tag','3',...
+    'Position',[10 10 380 30],'Tag','3',...
     'String','State derivative of pendulum model with SRS and velocity-related reflexes');
+
+% Autofit algorithm
+hGui.algFlags = uibuttongroup('Position',[0.04 0.028 .49 .12],...
+    'SelectionChangedFcn',@algSelection);
+hGui.flag4 = uicontrol(hGui.algFlags,'Style','radiobutton',...
+    'Position',[10 40 300 30],'Tag','0',...
+    'String','Fmincon');
+hGui.flag5 = uicontrol(hGui.algFlags,'Style','radiobutton',...
+    'Position',[10 10 380 30],'Tag','3',...
+    'String','BADS');
 
 %% Buttons
 % Load button
@@ -74,6 +84,7 @@ data.recordedPlot = plot(0,0);
 
 % Init parameters
 data.model.flag = 1;
+data.model.alg = 0;
 data.model.m = 4.9575;
 data.model.lc = 0.2556;
 data.model.I = 0.4455;
@@ -139,11 +150,19 @@ simulation(hGui.Fig,[]);
         guidata(hObject, handle)
     end
 
+    %% Select Algorithm
+    function algSelection(hObject,event)
+        handle = guidata(hObject);
+        handle.model.alg = str2double(event.NewValue.Tag);
+        guidata(hObject, handle)
+    end
+
     %% Load recorded data
     function loaddata(hObject,~)
-        fullfilename = uigetfile('*.mat');
-        if fullfilename == 0
+        [basename, folder] = uigetfile('*.mat');
+        if basename == 0
         else
+            fullfilename = fullfile(folder,basename);
             load(fullfilename,'q','time')
             handle = guidata(hObject);
             set(handle.recordedPlot,'xdata',time,'ydata',q+5,...
@@ -177,18 +196,43 @@ simulation(hGui.Fig,[]);
         q = handle.recorded.q;
         time = handle.recorded.time;
         options = [];
-        flags = handle.model.flag;
+        alg = handle.model.alg;
+        if alg == 3
+            if exist('bads','file')~=2
+                warndlg('BADS not installed, please download it from https://github.com/lacerbi/bads')
+                return
+            end
+        end
+        flags = handle.model.flag+alg;
+        optimize_options = optimset('display','off','algorithm',...
+    'interior-point','TolX',1e-9,'TolFun',1e-8,'MaxFunEvals',10000); 
 
         switch flags
+            %fmincon
             case 1
-                [opt_gains,~] = bads(@(datav)costFunction(datav,q,time,flags,hObject),...
-                    Tb,lower_bound, upper_bound,[],[],[],options);
+                [opt_gains,~] = fmincon(@(datav)costFunction(datav,q,time,flags,hObject),...
+                    Tb,[],[],[],[],lower_bound, upper_bound,[],optimize_options);
             case 2
+                [opt_gains,~] = fmincon(@(datav)costFunction(datav,q,time,flags,hObject),...
+                    [Tb gain'],[],[],[],[],[lower_bound glb],[upper_bound gub],[],optimize_options);
+                handle.model.vector(strcmp(cellstr(handle.model.vectorID),'kF')) = opt_gains(2);
+                handle.model.vector(strcmp(cellstr(handle.model.vectorID),'kdF')) = opt_gains(3);
+            case 3
+                [opt_gains,~] = fmincon(@(datav)costFunction(datav,q,time,flags,hObject),...
+                    [Tb' gain],[],[],[],[],[lower_bound glb], [upper_bound gub],[],optimize_options);
+                handle.model.vector(strcmp(cellstr(handle.model.vectorID),'kF')) = opt_gains(2);
+                handle.model.vector(strcmp(cellstr(handle.model.vectorID),'kdF')) = opt_gains(3);
+            
+            %bads
+            case 4
+                [opt_gains,~] = bads(@(datav)costFunction(datav,q,time,flags,hObject),...
+                                    Tb,lower_bound, upper_bound,[],[],[],options);
+            case 5
                 [opt_gains,~] = bads(@(datav)costFunction(datav,q,time,flags,hObject),...
                     [Tb gain'],[lower_bound glb],[upper_bound gub],[],[],[],options);
                 handle.model.vector(strcmp(cellstr(handle.model.vectorID),'kF')) = opt_gains(2);
                 handle.model.vector(strcmp(cellstr(handle.model.vectorID),'kdF')) = opt_gains(3);
-            case 3
+            case 6
                 [opt_gains,~] = bads(@(datav)costFunction(datav,q,time,flags,hObject),...
                     [Tb' gain],[lower_bound glb], [upper_bound gub],[],[],[],options);
                 handle.model.vector(strcmp(cellstr(handle.model.vectorID),'kF')) = opt_gains(2);
@@ -301,6 +345,20 @@ simulation(hGui.Fig,[]);
                 solls = ddensd(@pendulumStateDerivative_SRS_Ffb, lags, lags, x0, tspan);
                 sim = interp1(solls.x,solls.y(1,:)',tspan)';
             case 3
+                inputdata.kl = datav(3);
+                inputdata.kv = datav(2);
+                solls_v = ddensd(@pendulumStateDerivative_SRS_vfb, lags, lags, x0, tspan);
+                sim = interp1(solls_v.x,solls_v.y(1,:)',tspan)';
+            
+            case 4
+                [~,sim] = ode15s(@pendulumStateDerivative_SRS, tspan, x0(1:3), options, inputdata);
+                
+            case 5
+                inputdata.kF = datav(2);
+                inputdata.fdF = datav(3);
+                solls = ddensd(@pendulumStateDerivative_SRS_Ffb, lags, lags, x0, tspan);
+                sim = interp1(solls.x,solls.y(1,:)',tspan)';
+            case 6
                 inputdata.kl = datav(3);
                 inputdata.kv = datav(2);
                 solls_v = ddensd(@pendulumStateDerivative_SRS_vfb, lags, lags, x0, tspan);
