@@ -3,11 +3,11 @@ function PenGulum
 %% Init
 % Create handle hGui and Figure
 hGui.Fig = figure('Name','PenGulum, a Gui for pendulum simulations',...
-    'NumberTitle','off','Resize','off','Position',[100 50 800 650]);
+    'NumberTitle','off','Resize','off','Position',[100 50 900 650]);
 data = guihandles(hGui.Fig);
 
 % Create axis
-hGui.Axis = axes('Parent',hGui.Fig,'Position',[.1 .45 .6 .5]);
+hGui.Axis = axes('Parent',hGui.Fig,'Position',[.1 .45 .58 .5]);
 
 % Set axis properties
 xlabel(hGui.Axis,'time [s]');
@@ -16,28 +16,50 @@ set(hGui.Axis,'xlim',[0 12],'ylim',[-140 20],'XTick',0:2:12,...
     'YTick',-120:20:0);
 
 %% Controls
-% Create parameters controls (text,edit text and slider)
+% Create parameters controls (text, edit text and slider)
 controlParameters = {'Mass (kg)','Length (m)','Inertia (kgm^2)',...
     'Baseline tone (Nm)','Damping (Nm.s)','Duration (s)','Feedback gain','Derivative feedback gain',...
     'Starting Angle'};
 for i = 1:size(controlParameters,2)
     hGui.controlText(i) = uicontrol(hGui.Fig,'Style','text',...
-        'String',controlParameters(i),'Position',[600 620-(70*(i-1)) 130 20]);
-end
-for i = 1:size(controlParameters,2)
+        'String',controlParameters(i),'Position',[630 620-(70*(i-1)) 130 20]);
+    
     hGui.controlEdit(i) = uicontrol(hGui.Fig,'Style','edit',...
-        'Position',[600 600-(70*(i-1)) 130 20],'Tag',num2str(i),...
+        'Position',[630 600-(70*(i-1)) 130 20],'Tag',num2str(i),...
         'Callback',@changeValue2);
-end
-for i = 1:size(controlParameters,2)
+    
     hGui.controlSlide(i) = uicontrol(hGui.Fig,'Style','slider',...
-        'Position',[600 580-(70*(i-1)) 130 20],...
+        'Position',[630 580-(70*(i-1)) 130 20],...
         'value',0, 'min',0, 'max',1,'SliderStep',[0.01 0.1],...
         'Tag',num2str(i),'Callback',@changeValue);
 end
 
+hGui.controlText(10) = uicontrol(hGui.Fig,'Style','text',...
+    'String','Scale','Position',[765 620-(70) 130 20]);
+
+hGui.controlEdit(10) = uicontrol(hGui.Fig,'Style','edit',...
+    'Position',[765 600-(70) 130 20],'Tag','10',...
+    'Callback',@changeValue2);
+
+hGui.controlSlide(10) = uicontrol(hGui.Fig,'Style','slider',...
+    'Position',[765 580-(70) 130 20],...
+    'value',0, 'min',0, 'max',1,'SliderStep',[0.01 0.1],...
+    'Tag','10','Callback',@changeValue);
+
+hGui.controlText(11) = uicontrol(hGui.Fig,'Style','text',...
+    'String','Scale','Position',[765 620-(140) 130 20]);
+
+hGui.controlEdit(11) = uicontrol(hGui.Fig,'Style','edit',...
+    'Position',[765 600-(140) 130 20],'Tag','11',...
+    'Callback',@changeValue2);
+
+hGui.controlSlide(11) = uicontrol(hGui.Fig,'Style','slider',...
+    'Position',[765 580-(140) 130 20],...
+    'value',0, 'min',10, 'max',1000,'SliderStep',[1 1],...
+    'Tag','11','Callback',@changeValue);
+
 % Model selection
-hGui.modelFlags = uibuttongroup('Position',[0.04 0.151 .49 .17],...
+hGui.modelFlags = uibuttongroup('Position',[0.04 0.151 .49 .21],...
     'SelectionChangedFcn',@modelSelection);
 hGui.flag1 = uicontrol(hGui.modelFlags,'Style','radiobutton',...
     'Position',[10 70 300 30],'Tag','1',...
@@ -62,20 +84,21 @@ hGui.flag5 = uicontrol(hGui.algFlags,'Style','radiobutton',...
 %% Buttons
 % Load button
 hGui.Load = uicontrol('style','pushbutton','string','Load recorded data',...
-    'Position',[430 70 130 40],'Callback',@loaddata);
+    'Position',[485 70 130 40],'Callback',@loaddata);
 
 % Save button
 hGui.Save = uicontrol('style','pushbutton','string','Save figure',...
-    'Position',[430 20 130 40]);
+    'Position',[485 20 130 40]);
 
 % Auto-Optimization button
 hGui.autoFit = uicontrol('style','pushbutton','string','Autofit',...
-    'Position',[430 120 130 40],'Enable','off','Callback',@autofit);
+    'Position',[485 120 130 40],'Enable','off','Callback',@autofit);
 
 % Update button
 hGui.Update = uicontrol('style','pushbutton','string','Update plot',...
-    'Position',[430 170 130 40],'Callback',@simulation);
+    'Position',[485 170 130 40],'Callback',@simulation);
 
+%%
 %%
 % Plot handles
 hold on
@@ -98,13 +121,16 @@ data.model.delta_theta_crit = 0.0262;
 data.model.dur = 12;
 data.model.Tb = 0.95;
 data.model.q0 = 0;
+data.model.scale = 1;
+data.model.Fs = 120;
 
-data.model.vectorID = {'m','lc','I','Tb','d','dur','kF','kdF','q0'};
+data.model.vectorID = {'m','lc','I','Tb','d','dur','kF','kdF','q0','scale','Fs'};
 
 data.model.vector = [data.model.m data.model.lc data.model.I data.model.Tb...
-    data.model.d data.model.dur data.model.kF data.model.kdF data.model.q0];
-data.model.lbounds = [0.1 0.1 0.1 0 0 1 0.00001 0.00001 -90];
-data.model.ubounds = [10 2 2 5 1 20 3 1 10];
+    data.model.d data.model.dur data.model.kF data.model.kdF data.model.q0...
+    data.model.scale data.model.Fs];
+data.model.lbounds = [0.1 0.1 0.1 0 0 1 0.00001 0.00001 -90 0.1 10];
+data.model.ubounds = [10 2 2 10 3 20 3 1 10 2 1000];
 
 data.simulation.q = [];
 data.simulation.time = [];
@@ -130,6 +156,21 @@ simulation(hGui.Fig,[]);
         set(findobj('Style','edit','Tag',get(hObject,'Tag')),...
             'String',num2str(get(hObject,'Value')));
         handle.model.vector(str2double(get(hObject,'Tag'))) = get(hObject,'Value');
+        
+        if str2double(get(hObject,'Tag'))==10            
+            handle.model.vector(1) = (get(hObject,'Value')^2)*data.model.m;
+            set(findobj('Style','edit','Tag','1'),'String',...
+                handle.model.vector(1));
+            
+            handle.model.vector(2) = (get(hObject,'Value'))*data.model.lc;
+            set(findobj('Style','edit','Tag','2'),'String',...
+                handle.model.vector(2));
+            
+            handle.model.vector(3) = (get(hObject,'Value')^4)*data.model.I;     
+            set(findobj('Style','edit','Tag','3'),'String',...
+                handle.model.vector(3));                  
+        end
+        
         guidata(hObject, handle)
         simulation(hObject,event);
     end
@@ -139,6 +180,21 @@ simulation(hGui.Fig,[]);
         set(findobj('Style','slider','Tag',get(hObject,'Tag')),...
             'Value',str2double(get(hObject,'String')));
         handle.model.vector(str2double(get(hObject,'Tag'))) = str2double(get(hObject,'String'));
+        
+        if str2double(get(hObject,'Tag'))==10            
+            handle.model.vector(1) = (str2double(get(hObject,'String'))^2)*data.model.m;
+            set(findobj('Style','edit','Tag','1'),'String',...
+                handle.model.vector(1));
+            
+            handle.model.vector(2) = (str2double(get(hObject,'String')))*data.model.lc;
+            set(findobj('Style','edit','Tag','2'),'String',...
+                handle.model.vector(2));
+            
+            handle.model.vector(3) = (str2double(get(hObject,'String'))^4)*data.model.I;     
+            set(findobj('Style','edit','Tag','3'),'String',...
+                handle.model.vector(3));                  
+        end
+        
         guidata(hObject, handle)
         simulation(hObject,event);
     end
@@ -175,6 +231,9 @@ simulation(hGui.Fig,[]);
                 'YTick',-120:20:0);
             set(findobj('Style','pushbutton','string','Autofit'),...
                 'Enable','on')
+            set(findobj('Style','edit','Tag','11'),'String',...
+                num2str(1/(time(2)-time(1))));
+            handle.model.vector(11) = 1/(time(2)-time(1));
             guidata(hObject, handle)
         end
     end
@@ -219,10 +278,9 @@ simulation(hGui.Fig,[]);
                 handle.model.vector(strcmp(cellstr(handle.model.vectorID),'kdF')) = opt_gains(3);
             case 3
                 [opt_gains,~] = fmincon(@(datav)costFunction(datav,q,time,flags,hObject),...
-                    [Tb' gain],[],[],[],[],[lower_bound glb], [upper_bound gub],[],optimize_options);
+                    [Tb gain'],[],[],[],[],[lower_bound glb], [upper_bound gub],[],optimize_options);
                 handle.model.vector(strcmp(cellstr(handle.model.vectorID),'kF')) = opt_gains(2);
                 handle.model.vector(strcmp(cellstr(handle.model.vectorID),'kdF')) = opt_gains(3);
-            
             %bads
             case 4
                 [opt_gains,~] = bads(@(datav)costFunction(datav,q,time,flags,hObject),...
@@ -277,6 +335,7 @@ simulation(hGui.Fig,[]);
         inputdata.theta0 = x0(1);
         options = [];
         lags = 0.05;
+        Fs = handle.model.vector(strcmp(cellstr(handle.model.vectorID),'Fs'));
         
         global hist params;
         
@@ -290,16 +349,18 @@ simulation(hGui.Fig,[]);
                 params = inputdata;
                 hist = 1;
                 solls = ddensd(@pendulumStateDerivative_SRS_Ffb, lags, lags, x0, tspan);
-                sim = interp1(solls.x,solls.y(1,:)',tspan(1):0.01:tspan(2))';
-                set(handle.simulationPlot,'xdata',tspan(1):0.01:tspan(2),'ydata',...
+                sim = deval(solls,tspan(1):1/Fs:tspan(2))';
+                %sim = interp1(solls.x,solls.y(1,:)',tspan(1):0.01:tspan(2))';
+                set(handle.simulationPlot,'xdata',tspan(1):1/Fs:tspan(2),'ydata',...
                     sim(:,1)*180/pi,'Color',[0 0 0],'Linewidth',2);
             case {3,6}
                 x0 = [q0/180*pi 0 0 0];
                 params = inputdata;
                 hist = 1;
                 solls_v = ddensd(@pendulumStateDerivative_SRS_vfb, lags, lags, x0, tspan);
-                sim = interp1(solls_v.x,solls_v.y(1,:)',tspan(1):0.01:tspan(2))';
-                set(handle.simulationPlot,'xdata',tspan(1):0.01:tspan(2),'ydata',...
+                sim = deval(solls_v,tspan(1):1/Fs:tspan(2))';
+                %sim = interp1(solls_v.x,solls_v.y(1,:)',tspan(1):1/Fs:tspan(2))';
+                set(handle.simulationPlot,'xdata',tspan(1):1/Fs:tspan(2),'ydata',...
                     sim(:,1)*180/pi,'Color',[0 0 0],'Linewidth',2);
         end
         xlabel(gca,'time [s]');
@@ -343,12 +404,14 @@ simulation(hGui.Fig,[]);
                 inputdata.kF = datav(2);
                 inputdata.fdF = datav(3);
                 solls = ddensd(@pendulumStateDerivative_SRS_Ffb, lags, lags, x0, tspan);
-                sim = interp1(solls.x,solls.y(1,:)',tspan)';
+                sim = deval(solls,tspan)';
+                %sim = interp1(solls.x,solls.y(1,:)',tspan)';
             case {3,6}
                 inputdata.kl = datav(3);
                 inputdata.kv = datav(2);
                 solls_v = ddensd(@pendulumStateDerivative_SRS_vfb, lags, lags, x0, tspan);
-                sim = interp1(solls_v.x,solls_v.y(1,:)',tspan)';
+                sim = deval(solls_v,tspan)';
+                %sim = interp1(solls_v.x,solls_v.y(1,:)',tspan)';                
         end
         
         error = recorded - (sim(:,1)'*180/pi);
