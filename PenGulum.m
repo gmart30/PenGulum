@@ -1,4 +1,5 @@
 function PenGulum
+%%% Graphic user interface for the pendulum test model
 
 %% Init
 % Create handle hGui and Figure
